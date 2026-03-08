@@ -23,9 +23,11 @@ let penaltySecondsLeft = 0;
 // State
 let currentScreen = 'login-screen';
 let studentName = '';
+let myJoinPin = ''; // Track our active join PIN
+let isJoined = false; // Track if we successfully joined
 let examQuestions = [];
 let currentQuestionIndex = 0;
-let answers = {}; // questionId -> answer
+let answers = {};
 let canEdit = true;
 let isUnloading = false;
 
@@ -103,9 +105,11 @@ inputs.joinBtn.addEventListener('click', () => {
 
 function doJoin(pin, name) {
     studentName = name;
+    myJoinPin = pin;
     inputs.joinBtn.textContent = 'Joining...';
     inputs.error.style.color = '';
     inputs.error.textContent = '';
+    localStorage.setItem('recit_student_name', name);
 
     socket.emit('join-room', { pin, role: 'student' });
     socket.emit('relay-event', { pin, event: 'join-session', data: { pin, name, socketId: socket.id } });
@@ -121,12 +125,23 @@ function doJoin(pin, name) {
 // Socket Events
 let connectAttempts = 0;
 socket.on('connect', () => {
-    console.log('Connected to server');
+    console.log('✅ Connected to relay. Socket ID:', socket.id);
     connectAttempts = 0;
-    // Remove any wakeup message
     if (inputs.error) inputs.error.style.color = '';
     if (inputs.error && inputs.error.textContent.includes('Waking')) {
         inputs.error.textContent = '';
+    }
+
+    // Auto-rejoin if we were already in a session (socket ID changed)
+    if (myJoinPin && studentName && !isJoined) {
+        console.log('🔄 Rejoining with new socket ID...');
+        socket.emit('join-room', { pin: myJoinPin, role: 'student' });
+        socket.emit('relay-event', { pin: myJoinPin, event: 'join-session', data: { pin: myJoinPin, name: studentName, socketId: socket.id } });
+    } else if (myJoinPin && studentName && isJoined) {
+        // Reconnected after a drop — rejoin to sync state
+        console.log('🔄 Reconnected — syncing session state...');
+        socket.emit('join-room', { pin: myJoinPin, role: 'student' });
+        socket.emit('relay-event', { pin: myJoinPin, event: 'join-session', data: { pin: myJoinPin, name: studentName, socketId: socket.id } });
     }
 });
 
@@ -154,15 +169,26 @@ socket.on('error', (err) => {
 });
 
 socket.on('joined', (data) => {
-    // Only handle if targeted to us
-    if (data.targetSid && data.targetSid !== socket.id) return;
-    
-    console.log('Join successful:', data);
+    // Accept join if targeted to our current ID OR if no specific target (broadcast)
+    // We also accept if the targetSid doesn't match because socket ID may have changed
+    // during transport upgrade (polling → websocket). We trust name-based matching on host.
+    if (data.targetSid && data.targetSid !== socket.id) {
+        // If we just rejoined with a new socket ID, still accept the response
+        // as long as we are in joining state and the pin matches
+        if (!myJoinPin || isJoined) return;
+        console.log('⚠️ targetSid mismatch (transport upgrade?), accepting anyway for our session');
+    }
+
+    console.log('✅ Join confirmed:', data);
     isJoined = true;
+    if (inputs.joinBtn) {
+        inputs.joinBtn.disabled = false;
+        inputs.joinBtn.textContent = 'Join Exam';
+    }
     document.getElementById('student-name-display').textContent = studentName;
 
     // Persist for refresh
-    saveSession(inputs.pin.value || localStorage.getItem('recit_exam_pin'), studentName);
+    saveSession(myJoinPin || inputs.pin.value || localStorage.getItem('recit_exam_pin'), studentName);
 
     if (data.status === 'active') {
         showScreen('exam-screen');
