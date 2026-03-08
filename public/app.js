@@ -552,8 +552,25 @@ window.addEventListener('load', () => {
     if (savedPin && savedName) {
         console.log('🔄 Attempting auto-rejoin for:', savedName);
         studentName = savedName;
-        socket.emit('join-session', { pin: savedPin, name: savedName });
-        inputs.error.textContent = 'Reconnecting...';
+        myJoinPin = savedPin;
+        inputs.name.value = savedName;
+        if (!inputs.pin.value) inputs.pin.value = savedPin;
+        inputs.error.style.color = '#f59e0b';
+        inputs.error.textContent = 'Restoring your session...';
+
+        // Wait until connected to rejoin
+        if (socket.connected) {
+            socket.emit('join-room', { pin: savedPin, role: 'student' });
+            socket.emit('relay-event', { pin: savedPin, event: 'join-session', data: { pin: savedPin, name: savedName, socketId: socket.id } });
+        } else {
+            socket.once('connect', () => {
+                socket.emit('join-room', { pin: savedPin, role: 'student' });
+                socket.emit('relay-event', { pin: savedPin, event: 'join-session', data: { pin: savedPin, name: savedName, socketId: socket.id } });
+            });
+        }
+    }
+});
+
 // Connectivity Handlers
 socket.on('disconnect', (reason) => {
     console.warn('🔌 Disconnected:', reason);
@@ -574,10 +591,9 @@ socket.on('reconnect', (attemptNumber) => {
     }
 
     // Auto-rejoin if we were in an exam
-    const savedPin = localStorage.getItem('recit_exam_pin');
-    const savedName = localStorage.getItem('recit_exam_name');
-    if (savedPin && savedName && (currentScreen === 'exam-screen' || currentScreen === 'waiting-screen')) {
-        socket.emit('join-session', { pin: savedPin, name: savedName });
+    if (myJoinPin && studentName && (currentScreen === 'exam-screen' || currentScreen === 'waiting-screen')) {
+        socket.emit('join-room', { pin: myJoinPin, role: 'student' });
+        socket.emit('relay-event', { pin: myJoinPin, event: 'join-session', data: { pin: myJoinPin, name: studentName, socketId: socket.id } });
     }
 });
 
@@ -588,7 +604,3 @@ socket.on('connect_error', (error) => {
         indicator.className = 'status-badge reconnecting';
     }
 });
-        inputs.joinBtn.disabled = true;
-    }
-});
-
