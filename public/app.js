@@ -549,25 +549,18 @@ window.addEventListener('load', () => {
     const savedPin = localStorage.getItem('recit_exam_pin');
     const savedName = localStorage.getItem('recit_exam_name');
 
+    // Just pre-fill the form — don't auto-join silently (causes stuck Reconnecting)
     if (savedPin && savedName) {
-        console.log('🔄 Attempting auto-rejoin for:', savedName);
-        studentName = savedName;
-        myJoinPin = savedPin;
         inputs.name.value = savedName;
         if (!inputs.pin.value) inputs.pin.value = savedPin;
-        inputs.error.style.color = '#f59e0b';
-        inputs.error.textContent = 'Restoring your session...';
-
-        // Wait until connected to rejoin
-        if (socket.connected) {
-            socket.emit('join-room', { pin: savedPin, role: 'student' });
-            socket.emit('relay-event', { pin: savedPin, event: 'join-session', data: { pin: savedPin, name: savedName, socketId: socket.id } });
-        } else {
-            socket.once('connect', () => {
-                socket.emit('join-room', { pin: savedPin, role: 'student' });
-                socket.emit('relay-event', { pin: savedPin, event: 'join-session', data: { pin: savedPin, name: savedName, socketId: socket.id } });
-            });
-        }
+        inputs.error.style.color = '#10b981'; // green
+        inputs.error.textContent = `👋 Welcome back, ${savedName}! Tap Join to rejoin.`;
+        // Clear message after 4s so it's not distracting
+        setTimeout(() => {
+            if (inputs.error.textContent.includes('Welcome back')) {
+                inputs.error.textContent = '';
+            }
+        }, 4000);
     }
 });
 
