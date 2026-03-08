@@ -26,6 +26,7 @@ let currentScreen = 'login-screen';
 let studentName = '';
 let myJoinPin = ''; // Track our active join PIN
 let isJoined = false; // Track if we successfully joined
+let joinTimeout = null; // Timeout to re-enable button if join fails
 let examQuestions = [];
 let currentQuestionIndex = 0;
 let answers = {};
@@ -108,12 +109,24 @@ function doJoin(pin, name) {
     studentName = name;
     myJoinPin = pin;
     inputs.joinBtn.textContent = 'Joining...';
+    inputs.joinBtn.disabled = true;
     inputs.error.style.color = '';
     inputs.error.textContent = '';
     localStorage.setItem('recit_student_name', name);
 
     socket.emit('join-room', { pin, role: 'student' });
     socket.emit('relay-event', { pin, event: 'join-session', data: { pin, name, socketId: socket.id } });
+
+    // Safety net: re-enable button if no join confirmation within 15s
+    clearTimeout(joinTimeout);
+    joinTimeout = setTimeout(() => {
+        if (!isJoined) {
+            inputs.joinBtn.disabled = false;
+            inputs.joinBtn.textContent = 'Join Session';
+            inputs.error.style.color = '#ef4444';
+            inputs.error.textContent = 'No response from host. Check the PIN and try again.';
+        }
+    }, 15000);
 
     // Try to enter fullscreen
     try {
@@ -149,7 +162,7 @@ socket.on('connect', () => {
 socket.on('connect_error', () => {
     connectAttempts++;
     if (connectAttempts <= 3) {
-        inputs.error.style.color = '#f59e0b'; // amber
+        inputs.error.style.color = '#f59e0b';
         inputs.error.textContent = `⏳ Waking up relay server... (${connectAttempts * 5}s / ~30s)`;
     } else if (connectAttempts <= 8) {
         inputs.error.style.color = '#f59e0b';
@@ -157,6 +170,9 @@ socket.on('connect_error', () => {
     } else {
         inputs.error.style.color = '#ef4444';
         inputs.error.textContent = '❌ Cannot reach relay. Check your internet connection.';
+        // Re-enable button so they can retry
+        inputs.joinBtn.disabled = false;
+        inputs.joinBtn.textContent = 'Join Session';
     }
 });
 
@@ -170,25 +186,20 @@ socket.on('error', (err) => {
 });
 
 socket.on('joined', (data) => {
-    // Accept join if targeted to our current ID OR if no specific target (broadcast)
-    // We also accept if the targetSid doesn't match because socket ID may have changed
-    // during transport upgrade (polling → websocket). We trust name-based matching on host.
     if (data.targetSid && data.targetSid !== socket.id) {
-        // If we just rejoined with a new socket ID, still accept the response
-        // as long as we are in joining state and the pin matches
         if (!myJoinPin || isJoined) return;
         console.log('⚠️ targetSid mismatch (transport upgrade?), accepting anyway for our session');
     }
 
+    clearTimeout(joinTimeout); // Cancel the safety net
     console.log('✅ Join confirmed:', data);
     isJoined = true;
     if (inputs.joinBtn) {
         inputs.joinBtn.disabled = false;
-        inputs.joinBtn.textContent = 'Join Exam';
+        inputs.joinBtn.textContent = 'Join Session';
     }
     document.getElementById('student-name-display').textContent = studentName;
 
-    // Persist for refresh
     saveSession(myJoinPin || inputs.pin.value || localStorage.getItem('recit_exam_pin'), studentName);
 
     if (data.status === 'active') {
