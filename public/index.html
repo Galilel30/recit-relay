@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4f46e5">
+    <title>RecIT Live Exam</title>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app">
+        <div id="watermark-container" class="watermark-container"></div>
+        <!-- Login Screen -->
+        <div id="login-screen" class="screen active">
+            <div class="logo-icon">R</div>
+            <div class="header">
+                <h1>RecIT Live</h1>
+                <p>Student Portal</p>
+            </div>
+            <div class="form-group">
+                <input type="text" id="pin-input" placeholder="Enter Quiz PIN" inputmode="numeric" maxlength="6">
+                <input type="text" id="name-input" placeholder="Your Name" maxlength="50">
+                <button id="join-btn">Join Session</button>
+            </div>
+            <p id="login-error" class="error-msg"></p>
+        </div>
+
+        <!-- Waiting Screen -->
+        <div id="waiting-screen" class="screen">
+            <div class="waiting-content">
+                <div class="avatar-placeholder">
+                    <h2>Welcome, <span id="student-name-display"></span>!</h2>
+                </div>
+                <p>You are connected.</p>
+                <div class="loader"></div>
+                <p class="status-msg">Waiting for host to start...</p>
+            </div>
+        </div>
+
+        <!-- Exam Screen -->
+        <div id="exam-screen" class="screen">
+            <div class="progress-container">
+                <div id="exam-progress-bar" class="progress-bar"></div>
+            </div>
+            <div class="exam-header">
+                <span id="question-counter">Question 1/10</span>
+                <div class="header-actions">
+                    <button id="refresh-btn" title="Refresh Session" class="icon-btn">↻ Sync</button>
+                    <div id="exam-timer" class="timer">00:00</div>
+                </div>
+                <div class="loader-sm" style="display:none;" id="sync-loader"></div>
+            </div>
+            <div id="question-container">
+                <h3 id="question-text">Question Text Goes Here</h3>
+                <div id="options-container">
+                    <!-- Options injected here -->
+                </div>
+                <div id="text-answer-container" style="display:none;">
+                    <textarea id="text-answer" placeholder="Your thoughts..."></textarea>
+                </div>
+            </div>
+            <div class="exam-footer">
+                <button id="prev-btn" disabled>Back</button>
+                <button id="next-btn">Next</button>
+            </div>
+        </div>
+
+        <!-- Finished Screen -->
+        <div id="result-screen" class="screen">
+            <div class="result-content">
+                <div class="icon">✅</div>
+                <h2>Exam Submitted!</h2>
+                <p>Your answers have been recorded.</p>
+                <p>You may now close this window.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Violation Overlay -->
+    <div id="violation-overlay" class="overlay">
+        <div class="overlay-content">
+            <div class="warning-icon">⚠️</div>
+            <h2>Exam Focus Lost</h2>
+            <p>You switched away from the exam. This incident has been recorded to the host.</p>
+            <button id="resume-btn">Resume Exam</button>
+        </div>
+    </div>
+
+    <!-- Socket.io connection -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
