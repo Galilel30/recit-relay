@@ -15,9 +15,14 @@ const PORT = process.env.PORT || 3001;
 // Note: You should copy the contents of your local 'public/student' to a 'relay/public' folder before deploying.
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
 
 console.log(`📡 RecIT Relay Server running on port ${PORT}`);
 

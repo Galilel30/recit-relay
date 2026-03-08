@@ -89,23 +89,59 @@ inputs.joinBtn.addEventListener('click', () => {
 
     inputs.error.textContent = '';
     inputs.joinBtn.disabled = true;
-    inputs.joinBtn.textContent = 'Joining...';
+
+    if (!socket.connected) {
+        inputs.joinBtn.textContent = '⏳ Waking relay...';
+        inputs.error.style.color = '#f59e0b';
+        inputs.error.textContent = 'Relay is starting up, please wait...';
+        socket.once('connect', () => doJoin(pin, name));
+    } else {
+        inputs.joinBtn.textContent = 'Joining...';
+        doJoin(pin, name);
+    }
+});
+
+function doJoin(pin, name) {
     studentName = name;
+    inputs.joinBtn.textContent = 'Joining...';
+    inputs.error.style.color = '';
+    inputs.error.textContent = '';
 
     socket.emit('join-room', { pin, role: 'student' });
     socket.emit('relay-event', { pin, event: 'join-session', data: { pin, name, socketId: socket.id } });
 
-    // Try to enter fullscreen (user interaction required)
+    // Try to enter fullscreen
     try {
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen();
         }
     } catch (e) { console.log('Fullscreen failed'); }
-});
+}
 
 // Socket Events
+let connectAttempts = 0;
 socket.on('connect', () => {
     console.log('Connected to server');
+    connectAttempts = 0;
+    // Remove any wakeup message
+    if (inputs.error) inputs.error.style.color = '';
+    if (inputs.error && inputs.error.textContent.includes('Waking')) {
+        inputs.error.textContent = '';
+    }
+});
+
+socket.on('connect_error', () => {
+    connectAttempts++;
+    if (connectAttempts <= 3) {
+        inputs.error.style.color = '#f59e0b'; // amber
+        inputs.error.textContent = `⏳ Waking up relay server... (${connectAttempts * 5}s / ~30s)`;
+    } else if (connectAttempts <= 8) {
+        inputs.error.style.color = '#f59e0b';
+        inputs.error.textContent = `⏳ Still waking up... this can take up to 30 seconds on first connect.`;
+    } else {
+        inputs.error.style.color = '#ef4444';
+        inputs.error.textContent = '❌ Cannot reach relay. Check your internet connection.';
+    }
 });
 
 socket.on('error', (err) => {
