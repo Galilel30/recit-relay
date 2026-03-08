@@ -8,6 +8,7 @@ console.log('📡 Connecting to Relay:', RELAY_URL);
 if (AUTO_PIN) console.log('🔑 Auto-PIN from QR:', AUTO_PIN);
 
 const socket = io(RELAY_URL, {
+    transports: ['websocket'],   // Skip polling — required for Render.com
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
